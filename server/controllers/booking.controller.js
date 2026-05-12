@@ -1,0 +1,134 @@
+import Booking from "../models/booking.model.js";
+
+export const bookCar = async (req, res) => {
+  try {
+    const { car, pickupDate, returnDate, totalPrice } = req.body;
+
+    const existingBooking = await Booking.findOne({
+      car,
+
+      $or: [
+        {
+          pickupDate: { $lte: returnDate },
+          returnDate: { $gte: pickupDate },
+        },
+      ],
+    });
+
+    if (existingBooking) {
+      return res.status(400).json({
+        message: "Car Already Booked For Selected Dates",
+      });
+    }
+
+    const booking = await Booking.create({
+      user: req.user.id,
+      car,
+      pickupDate,
+      returnDate,
+      totalPrice,
+    });
+
+    res.status(201).json({
+      message: "Car Booked Successfully",
+      booking,
+    });
+  } catch (error) {
+    console.log("BOOKING ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+export const getMyBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      user: req.user.id,
+    })
+      .populate("car")
+      .populate("user", "-password");
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.log("MY BOOKINGS ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+export const cancelBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking Not Found",
+      });
+    }
+
+    if (booking.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    booking.status = "Cancelled";
+
+    await booking.save();
+
+    res.status(200).json({
+      message: "Booking Cancelled Successfully",
+    });
+  } catch (error) {
+    console.log("CANCEL BOOKING ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+export const getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate("user", "-password")
+      .populate("car");
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.log("GET ALL BOOKINGS ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+export const updateBookingStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        message: "Booking Not Found",
+      });
+    }
+
+    booking.status = status;
+
+    await booking.save();
+
+    res.status(200).json({
+      message: "Booking Status Updated",
+      booking,
+    });
+  } catch (error) {
+    console.log("UPDATE BOOKING STATUS ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};

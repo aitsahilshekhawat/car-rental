@@ -5,6 +5,7 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import carRoutes from "./routes/car.route.js";
+import bookingRoutes from "./routes/booking.route.js";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/cars", carRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running");
