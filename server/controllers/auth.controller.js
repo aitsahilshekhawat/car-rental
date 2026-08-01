@@ -133,7 +133,10 @@ This link will expire in 15 minutes.
 If you did not request this, please ignore this email.
 `;
 
-    await transporter.sendMail({
+      await transporter.verify();
+
+      console.log("✅ SMTP Connected");
+      await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: "Password Reset",
