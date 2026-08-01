@@ -133,10 +133,10 @@ This link will expire in 15 minutes.
 If you did not request this, please ignore this email.
 `;
 
-      await transporter.verify();
+    await transporter.verify();
 
-      console.log("✅ SMTP Connected");
-      await transporter.sendMail({
+    console.log("✅ SMTP Connected");
+    await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: "Password Reset",
@@ -147,10 +147,11 @@ If you did not request this, please ignore this email.
       message: "Password reset email sent",
     });
   } catch (error) {
-    console.log(error);
+    console.error("FORGOT PASSWORD ERROR:", error);
 
     res.status(500).json({
-      message: "Server Error",
+      message: error.message,
+      stack: process.env.NODE_ENV !== "production" ? error.stack : undefined,
     });
   }
 };
