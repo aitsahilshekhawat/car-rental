@@ -17,7 +17,18 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", process.env.CLIENT_URL],
+    credentials: true,
+  }),
+);
+
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, () => {
+  console.log(`Server Running on Port ${PORT}`);
+});
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
@@ -31,6 +42,4 @@ app.get("/", (req, res) => {
   res.send("API Running");
 });
 
-app.listen(process.env.PORT, () => {
-  console.log("Server Running");
-});
+
