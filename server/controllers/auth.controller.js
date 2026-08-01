@@ -1,7 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
+import crypto from "crypto";
+import transporter from "../config/mail.js";
 export const register = async (req, res) => {
   try {
     console.log(req.body);
@@ -87,6 +88,63 @@ export const getMe = async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     console.log("GET ME ERROR:", error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+    const message = `
+Hello ${user.name},
+
+You requested to reset your password.
+
+Click the link below:
+
+${resetUrl}
+
+This link will expire in 15 minutes.
+
+If you did not request this, please ignore this email.
+`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: "Password Reset",
+      text: message,
+    });
+
+    res.status(200).json({
+      message: "Password reset email sent",
+    });
+  } catch (error) {
+    console.log(error);
 
     res.status(500).json({
       message: "Server Error",
