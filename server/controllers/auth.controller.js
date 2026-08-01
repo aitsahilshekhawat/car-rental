@@ -137,7 +137,7 @@ If you did not request this, please ignore this email.
 
     console.log("✅ SMTP Connected");
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"Car Rental" <${process.env.SENDER_EMAIL}>`,
       to: user.email,
       subject: "Password Reset",
       text: message,
