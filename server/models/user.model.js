@@ -30,6 +30,18 @@ const userSchema = new mongoose.Schema(
         ref: "Car",
       },
     ],
+
+    // Forgot Password Fields
+
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordExpire: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

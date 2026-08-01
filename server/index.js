@@ -10,6 +10,7 @@ import dashboardRoutes from "./routes/dashboard.route.js";
 import userDashboardRoutes from "./routes/userDashboard.route.js";
 import favoriteRoutes from "./routes/favorite.route.js";
 import reviewRoutes from "./routes/review.route.js";
+
 dotenv.config();
 import "./config/cloudinary.js";
 
@@ -24,11 +25,6 @@ app.use(
   }),
 );
 
-const PORT = process.env.PORT || 10000;
-
-app.listen(PORT, () => {
-  console.log(`Server Running on Port ${PORT}`);
-});
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
@@ -38,8 +34,13 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/user-dashboard", userDashboardRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/reviews", reviewRoutes);
+
 app.get("/", (req, res) => {
   res.send("API Running");
 });
 
+const PORT = process.env.PORT || 10000;
 
+app.listen(PORT, () => {
+  console.log(`Server Running on Port ${PORT}`);
+});
