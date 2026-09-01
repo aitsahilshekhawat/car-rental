@@ -1,0 +1,28 @@
+/* Shared cards */
+.section-heading { align-items:end; display:flex; justify-content:space-between; margin-bottom:38px; }
+.section-heading h2 { margin-top:10px; }
+.section-copy { color:var(--ink-soft); margin-top:15px; max-width:450px; }
+.car-grid { display:grid; gap:22px; grid-template-columns:repeat(3,1fr); }
+.car-card { background:#fff; border:1px solid #e6e2da; border-radius:3px; overflow:hidden; transition:box-shadow .25s,transform .25s; }
+.car-card:hover { box-shadow:var(--shadow); transform:translateY(-4px); }
+.car-photo { background:#e7e8e6; display:block; height:224px; overflow:hidden; position:relative; }
+.car-photo img { height:100%; object-fit:cover; transition:transform .4s; width:100%; }
+.car-card:hover .car-photo img { transform:scale(1.04); }
+.car-type { background:rgba(255,255,255,.88); border-radius:20px; font-size:10px; font-weight:600; left:13px; padding:6px 9px; position:absolute; text-transform:uppercase; top:13px; }
+.save-car { align-items:center; background:rgba(255,255,255,.9); border:0; border-radius:50%; color:var(--ink); display:flex; height:33px; justify-content:center; position:absolute; right:12px; top:12px; width:33px; }
+.save-car.saved { color:var(--orange); }
+.car-card-copy { padding:17px 17px 14px; }
+.car-card-heading { align-items:start; display:flex; justify-content:space-between; }
+.car-card-heading .eyebrow { font-size:9px; }
+.car-card h3 { font-size:18px; font-weight:600; margin-top:3px; }
+.rating { align-items:center; color:#e67940; display:inline-flex; font-size:12px; font-weight:600; gap:3px; white-space:nowrap; }
+.rating small { color:#7c8190; font-weight:400; }
+.car-meta { color:#626d7b; display:flex; flex-wrap:wrap; font-size:11px; gap:8px 13px; margin:16px 0; }
+.car-meta span { align-items:center; display:flex; gap:4px; }
+.car-card-price { align-items:center; border-top:1px solid #ece9e2; display:flex; font-size:12px; justify-content:space-between; margin-top:16px; padding-top:14px; }
+.car-card-price strong { font-size:16px; letter-spacing:-.04em; }
+.car-card-price a { font-size:11px; font-weight:600; }
+.car-card-price a span { color:var(--orange); font-size:16px; }
+.car-card-compact .car-photo { height:184px; }
+.car-card-compact .car-card-copy { padding:15px; }
+.car-card-compact .car-card-price { margin-top:12px; }
