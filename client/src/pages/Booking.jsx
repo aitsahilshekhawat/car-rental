@@ -49,10 +49,14 @@ export function Booking() {
 
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
+  const member = getMember();
+  const defaultFirstName = member?.name ? member.name.split(" ")[0] : "";
+  const defaultLastName = member?.name ? member.name.split(" ").slice(1).join(" ") : "";
+
+  const [firstName, setFirstName] = useState(defaultFirstName);
+  const [lastName, setLastName] = useState(defaultLastName);
+  const [email, setEmail] = useState(member?.email || "");
+  const [mobile, setMobile] = useState(member?.phone || member?.mobile || "");
   
   const amount = car.pricePerDay * days;
 
