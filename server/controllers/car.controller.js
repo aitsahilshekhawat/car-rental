@@ -1,173 +1,157 @@
-import Booking from "../models/booking.model.js";
-import Car from "../models/car.model.js";
-import cloudinary from "../config/cloudinary.js";
-
-// M6/M7: Whitelist of fields allowed in car create/update
-const ALLOWED_CAR_FIELDS = [
-  "name", "brand", "type", "image", "images", "pricePerDay",
-  "fuelType", "transmission", "seatingCapacity", "location",
-];
-
-// Extract only whitelisted fields from request body
-const pickAllowedFields = (body) => {
-  const sanitized = {};
-  for (const key of ALLOWED_CAR_FIELDS) {
-    if (body[key] !== undefined) sanitized[key] = body[key];
-  }
-  return sanitized;
-};
+import prisma from "../config/prisma.js";
 
 export const addCar = async (req, res) => {
   try {
-    const carData = pickAllowedFields(req.body);
+    const {
+      name,
+      brand,
+      type,
+      pricePerDay,
+      fuelType,
+      transmission,
+      seatingCapacity,
+      location,
+      image,
+    } = req.body;
 
-    // Always set the logged-in user as the owner
-    carData.owner = req.user.id;
+    const carData = {
+      name,
+      brand,
+      type,
+      pricePerDay: Number(pricePerDay),
+      fuelType,
+      transmission,
+      seatingCapacity: Number(seatingCapacity),
+      location,
+      image,
+    };
 
-    const car = await Car.create(carData);
+    // If the user is a host or admin, set them as owner
+    if (req.user && (req.user.role === "host" || req.user.role === "admin")) {
+      carData.ownerId = req.user.id;
+    }
+
+    const car = await prisma.car.create({ data: carData });
 
     res.status(201).json({
       message: "Car Added Successfully",
-      car,
+      car: { ...car, _id: car.id },
     });
   } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    console.log("ADD CAR ERROR:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
+
 export const getCars = async (req, res) => {
   try {
-    const query = {};
+    const { location, fuelType, transmission, type, sortBy } = req.query;
 
-    if (req.query.location) {
-      query.location = {
-        $regex: req.query.location,
-        $options: "i",
-      };
+    const where = {};
+
+    if (location) {
+      where.location = { contains: location, mode: "insensitive" };
     }
+    if (fuelType) where.fuelType = fuelType;
+    if (transmission) where.transmission = transmission;
+    if (type) where.type = type;
 
-    if (req.query.fuelType) {
-      query.fuelType = req.query.fuelType;
-    }
+    let orderBy = { createdAt: "desc" };
+    if (sortBy === "low") orderBy = { pricePerDay: "asc" };
+    if (sortBy === "high") orderBy = { pricePerDay: "desc" };
 
-    if (req.query.type) {
-      query.type = req.query.type;
-    }
-
-    if (req.query.transmission) {
-      query.transmission = req.query.transmission;
-    }
-
-    let sortOption = {};
-
-    if (req.query.sortBy === "low") {
-      sortOption = {
-        pricePerDay: 1,
-      };
-    }
-
-    if (req.query.sortBy === "high") {
-      sortOption = {
-        pricePerDay: -1,
-      };
-    }
-
-    const cars = await Car.find(query).sort(sortOption).populate("owner", "name email");
+    const cars = await prisma.car.findMany({
+      where,
+      orderBy,
+      include: {
+        owner: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
 
     res.status(200).json({
-      cars,
+      cars: cars.map((c) => ({
+        ...c,
+        _id: c.id,
+        owner: c.owner ? { ...c.owner, _id: c.owner.id } : null,
+      })),
     });
   } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    console.log("GET CARS ERROR:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
+
 export const deleteCar = async (req, res) => {
   try {
-    const car = await Car.findById(req.params.id);
+    const car = await prisma.car.findUnique({ where: { id: req.params.id } });
 
     if (!car) {
-      return res.status(404).json({
-        message: "Car Not Found",
-      });
+      return res.status(404).json({ message: "Car Not Found" });
     }
 
-    // Managers have global access; hosts and admins can only delete their own cars
-    if (req.user.role !== "manager" && (!car.owner || car.owner.toString() !== req.user.id)) {
-      return res.status(403).json({ message: "You can only delete your own cars." });
+    // Authorization: only owner or admin can delete
+    if (req.user.role !== "admin" && car.ownerId !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Access Denied. You can only delete your own cars." });
     }
 
-    await car.deleteOne();
+    await prisma.car.delete({ where: { id: req.params.id } });
 
-    res.status(200).json({
-      message: "Car Deleted Successfully",
-    });
+    res.status(200).json({ message: "Car Deleted Successfully" });
   } catch (error) {
     console.log("DELETE CAR ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
+
 export const updateCar = async (req, res) => {
   try {
-    const car = await Car.findById(req.params.id);
+    const car = await prisma.car.findUnique({ where: { id: req.params.id } });
 
     if (!car) {
-      return res.status(404).json({
-        message: "Car Not Found",
-      });
+      return res.status(404).json({ message: "Car Not Found" });
     }
 
-    // Managers have global access; hosts and admins can only edit their own cars
-    if (req.user.role !== "manager" && (!car.owner || car.owner.toString() !== req.user.id)) {
-      return res.status(403).json({ message: "You can only edit your own cars." });
-    }
-
-    // M6: Only allow whitelisted fields to be updated
-    const updates = pickAllowedFields(req.body);
-
-    const updatedCar = await Car.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
+    const updatedCar = await prisma.car.update({
+      where: { id: req.params.id },
+      data: req.body,
     });
 
     res.status(200).json({
       message: "Car Updated Successfully",
-      car: updatedCar,
-      updatedCar,
+      car: { ...updatedCar, _id: updatedCar.id },
     });
   } catch (error) {
     console.log("UPDATE CAR ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
+
 export const getCarById = async (req, res) => {
   try {
-    const car = await Car.findById(req.params.id);
+    const car = await prisma.car.findUnique({
+      where: { id: req.params.id },
+      include: {
+        owner: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
 
     if (!car) {
-      return res.status(404).json({
-        message: "Car Not Found",
-      });
+      return res.status(404).json({ message: "Car Not Found" });
     }
 
-    res.status(200).json(car);
-  } catch (error) {
-    console.log("GET SINGLE CAR ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
+    res.status(200).json({
+      ...car,
+      _id: car.id,
+      owner: car.owner ? { ...car.owner, _id: car.owner.id } : null,
     });
+  } catch (error) {
+    console.log("GET CAR ERROR:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };

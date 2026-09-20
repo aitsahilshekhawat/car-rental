@@ -1,13 +1,15 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import Car from "./models/car.model.js";
+import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
 
 dotenv.config();
+
+const prisma = new PrismaClient();
 
 const dummyCars = [
   {
     name: "Mercedes-Benz S-Class",
     brand: "Mercedes",
+    type: "Luxury",
     pricePerDay: 15000,
     fuelType: "Petrol",
     transmission: "Automatic",
@@ -19,6 +21,7 @@ const dummyCars = [
   {
     name: "BMW M4 Competition",
     brand: "BMW",
+    type: "Premium",
     pricePerDay: 18000,
     fuelType: "Petrol",
     transmission: "Automatic",
@@ -30,6 +33,7 @@ const dummyCars = [
   {
     name: "Porsche 911 Carrera",
     brand: "Porsche",
+    type: "Premium",
     pricePerDay: 25000,
     fuelType: "Petrol",
     transmission: "Automatic",
@@ -41,6 +45,7 @@ const dummyCars = [
   {
     name: "Range Rover Velar",
     brand: "Land Rover",
+    type: "SUV",
     pricePerDay: 12000,
     fuelType: "Diesel",
     transmission: "Automatic",
@@ -52,6 +57,7 @@ const dummyCars = [
   {
     name: "Audi RS7 Sportback",
     brand: "Audi",
+    type: "Premium",
     pricePerDay: 20000,
     fuelType: "Petrol",
     transmission: "Automatic",
@@ -63,6 +69,7 @@ const dummyCars = [
   {
     name: "Tesla Model S Plaid",
     brand: "Tesla",
+    type: "Electric",
     pricePerDay: 16000,
     fuelType: "Electric",
     transmission: "Automatic",
@@ -74,6 +81,7 @@ const dummyCars = [
   {
     name: "Volvo XC90 Inscription",
     brand: "Volvo",
+    type: "SUV",
     pricePerDay: 14000,
     fuelType: "Hybrid",
     transmission: "Automatic",
@@ -85,6 +93,7 @@ const dummyCars = [
   {
     name: "Mercedes-AMG G63",
     brand: "Mercedes",
+    type: "SUV",
     pricePerDay: 35000,
     fuelType: "Petrol",
     transmission: "Automatic",
@@ -97,12 +106,13 @@ const dummyCars = [
 
 const seedDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("Connected to MongoDB for Seeding...");
+    console.log("Seeding PostgreSQL via Prisma...");
 
-    await Car.insertMany(dummyCars);
+    for (const car of dummyCars) {
+      await prisma.car.create({ data: car });
+    }
+
     console.log("8 Luxury Cars added successfully!");
-
     process.exit();
   } catch (error) {
     console.error("Error seeding cars:", error);

@@ -1,5 +1,5 @@
 import admin from "../config/firebase-admin.js";
-import User from "../models/user.model.js";
+import prisma from "../config/prisma.js";
 import jwt from "jsonwebtoken";
 import { setTokenCookie } from "../config/cookie.js";
 
@@ -11,42 +11,41 @@ export const phoneLogin = async (req, res) => {
       return res.status(400).json({ message: "Firebase ID token is required" });
     }
 
-    // Verify Firebase ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const phoneNumber = decodedToken.phone_number;
 
     if (!phoneNumber) {
-      return res.status(400).json({ message: "Phone number not found in token" });
+      return res
+        .status(400)
+        .json({ message: "Phone number not found in token" });
     }
 
-    // Check if user exists with this phone number
-    let user = await User.findOne({ phone: phoneNumber });
+    let user = await prisma.user.findFirst({ where: { phone: phoneNumber } });
 
     if (!user) {
-      // Create new user with phone
-      user = await User.create({
-        name: `User ${phoneNumber.slice(-4)}`,
-        email: `${phoneNumber.replace("+", "")}@phone.carrental.com`,
-        phone: phoneNumber,
-        authProvider: "phone",
-        password: "",
+      user = await prisma.user.create({
+        data: {
+          name: `User ${phoneNumber.slice(-4)}`,
+          email: `${phoneNumber.replace("+", "")}@phone.carrental.com`,
+          phone: phoneNumber,
+          authProvider: "phone",
+          password: "",
+        },
       });
     }
 
-    // Generate JWT
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { algorithm: "HS256", expiresIn: "7d" }
+      { algorithm: "HS256", expiresIn: "7d" },
     );
 
-    // H1: Set JWT in HttpOnly cookie
     setTokenCookie(res, token);
 
     res.status(200).json({
       message: "Phone Login Successful",
       user: {
-        _id: user._id,
+        _id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,

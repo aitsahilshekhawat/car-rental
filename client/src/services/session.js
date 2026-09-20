@@ -10,7 +10,7 @@ export function getMember() {
 
 export function saveMember(member) {
   const safeMember = {
-    _id: member._id,
+    _id: member._id || member.id,
     name: member.name,
     email: member.email,
     role: member.role,

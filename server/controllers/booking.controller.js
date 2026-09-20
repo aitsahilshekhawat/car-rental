@@ -1,298 +1,188 @@
-import mongoose from "mongoose";
-import Booking from "../models/booking.model.js";
-import Car from "../models/car.model.js";
-
-/* =========================
-   GET BOOKED DATES FOR A CAR
-========================= */
+import prisma from "../config/prisma.js";
 
 export const getBookedDates = async (req, res) => {
   try {
     const { carId } = req.params;
 
-    // Find all active bookings (Pending or Approved) for this car
-    const bookings = await Booking.find({
-      car: carId,
-      status: { $in: ["Pending", "Approved"] },
-      returnDate: { $gte: new Date() },
-    }).select("pickupDate returnDate -_id");
+    const bookings = await prisma.booking.findMany({
+      where: {
+        carId,
+        status: { in: ["PENDING", "APPROVED"] },
+      },
+      select: { pickupDate: true, returnDate: true },
+    });
 
-    // Convert each booking range into an array of individual dates
-    const bookedDates = [];
-    for (const booking of bookings) {
-      const start = new Date(booking.pickupDate);
-      const end = new Date(booking.returnDate);
-      const current = new Date(start);
-
-      while (current <= end) {
-        const y = current.getFullYear();
-        const m = String(current.getMonth() + 1).padStart(2, "0");
-        const d = String(current.getDate()).padStart(2, "0");
-        bookedDates.push(`${y}-${m}-${d}`);
-        current.setDate(current.getDate() + 1);
-      }
-    }
-
-    const uniqueDates = [...new Set(bookedDates)];
-    res.status(200).json({ bookedDates: uniqueDates });
+    res.status(200).json({ bookedDates: bookings });
   } catch (error) {
     console.log("GET BOOKED DATES ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-/* =========================
-   BOOK CAR
-========================= */
-
 export const bookCar = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const { car, pickupDate, returnDate } = req.body;
+    const { carId, pickupDate, returnDate, totalPrice } = req.body;
 
-    // DATE VALIDATION
-    const start = new Date(pickupDate);
-    const end = new Date(returnDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Invalid date format" });
-    }
-    if (start >= end) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Return date must be after pickup date" });
-    }
-
-    // CHECK CAR & COMPUTE PRICE SERVER-SIDE
-    const carDoc = await Car.findById(car).session(session);
-    if (!carDoc) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ message: "Car Not Found" });
-    }
-
-    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const totalPrice = days * carDoc.pricePerDay;
-
-    // ATOMIC OVERLAP CHECK WITHIN TRANSACTION
-    const existingBooking = await Booking.findOne({
-      car,
-      status: { $in: ["Pending", "Approved"] },
-      $or: [
-        {
-          pickupDate: { $lte: returnDate },
-          returnDate: { $gte: pickupDate },
+    const result = await prisma.$transaction(async (tx) => {
+      // Check for overlapping bookings
+      const overlapping = await tx.booking.findFirst({
+        where: {
+          carId,
+          status: { in: ["PENDING", "APPROVED"] },
+          OR: [
+            {
+              pickupDate: { lte: new Date(returnDate) },
+              returnDate: { gte: new Date(pickupDate) },
+            },
+          ],
         },
-      ],
-    }).session(session);
+      });
 
-    if (existingBooking) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Car Already Booked For Selected Dates" });
-    }
+      if (overlapping) {
+        throw new Error("OVERLAP");
+      }
 
-    // CREATE BOOKING WITHIN TRANSACTION
-    const [booking] = await Booking.create(
-      [
-        {
-          user: req.user.id,
-          car,
-          pickupDate,
-          returnDate,
-          totalPrice,
-          status: "Pending",
+      const booking = await tx.booking.create({
+        data: {
+          userId: req.user.id,
+          carId,
+          pickupDate: new Date(pickupDate),
+          returnDate: new Date(returnDate),
+          totalPrice: Number(totalPrice),
+          status: "PENDING",
         },
-      ],
-      { session }
-    );
+      });
 
-    await session.commitTransaction();
-    session.endSession();
+      return booking;
+    });
 
     res.status(201).json({
       message: "Car Booked Successfully",
-      booking,
+      booking: { ...result, _id: result.id },
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.log("BOOKING ERROR:", error);
+    if (error.message === "OVERLAP") {
+      return res
+        .status(400)
+        .json({ message: "Car is already booked for these dates" });
+    }
+    console.log("BOOK CAR ERROR:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-/* =========================
-   GET MY BOOKINGS
-========================= */
-
 export const getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({
-      user: req.user.id,
-    })
-      .populate("car")
-      .sort({
-        createdAt: -1,
-      });
+    const bookings = await prisma.booking.findMany({
+      where: { userId: req.user.id },
+      include: {
+        car: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     res.status(200).json({
-      bookings,
+      bookings: bookings.map((b) => ({
+        ...b,
+        _id: b.id,
+        car: b.car ? { ...b.car, _id: b.car.id } : null,
+      })),
     });
   } catch (error) {
     console.log("GET MY BOOKINGS ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
-
-/* =========================
-   CANCEL BOOKING
-========================= */
 
 export const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
 
     if (!booking) {
-      return res.status(404).json({
-        message: "Booking Not Found",
-      });
+      return res.status(404).json({ message: "Booking not found" });
     }
 
-    // USER CHECK
-
-    if (booking.user.toString() !== req.user.id) {
-      return res.status(403).json({
-        message: "Unauthorized",
-      });
+    if (booking.userId !== req.user.id && req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "You can only cancel your own bookings" });
     }
 
-    booking.status = "Cancelled";
-
-    await booking.save();
-
-    // MAKE CAR AVAILABLE AGAIN
-
-    const car = await Car.findById(booking.car);
-
-    if (car) {
-      car.available = true;
-
-      await car.save();
+    if (booking.status === "CANCELLED") {
+      return res.status(400).json({ message: "Booking is already cancelled" });
     }
+
+    const updated = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status: "CANCELLED" },
+    });
 
     res.status(200).json({
-      message: "Booking Cancelled Successfully",
+      message: "Booking Cancelled",
+      booking: { ...updated, _id: updated.id },
     });
   } catch (error) {
     console.log("CANCEL BOOKING ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
-
-/* =========================
-   GET ALL BOOKINGS
-========================= */
 
 export const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate("user", "-password")
-      .populate("car")
-      .sort({
-        createdAt: -1,
-      });
+    const bookings = await prisma.booking.findMany({
+      include: {
+        car: true,
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
     res.status(200).json({
-      bookings,
+      bookings: bookings.map((b) => ({
+        ...b,
+        _id: b.id,
+        car: b.car ? { ...b.car, _id: b.car.id } : null,
+        user: b.user ? { ...b.user, _id: b.user.id } : null,
+      })),
     });
   } catch (error) {
     console.log("GET ALL BOOKINGS ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
-
-/* =========================
-   UPDATE BOOKING STATUS
-========================= */
 
 export const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
-    const booking = await Booking.findById(req.params.id);
-
-    if (!booking) {
-      return res.status(404).json({
-        message: "Booking Not Found",
-      });
-    }
-
-    // VALID STATUS
-
-    const validStatuses = [
-      "Pending",
-
-      "Approved",
-
-      "Rejected",
-
-      "Completed",
-
-      "Cancelled",
-    ];
+    const validStatuses = ["PENDING", "APPROVED", "REJECTED", "COMPLETED", "CANCELLED"];
 
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        message: "Invalid Status",
-      });
+      return res.status(400).json({ message: "Invalid status" });
     }
 
-    booking.status = status;
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
 
-    await booking.save();
-
-    // CAR AVAILABILITY
-
-    const car = await Car.findById(booking.car);
-
-    if (car) {
-      if (status === "Approved") {
-        car.available = false;
-      }
-
-      if (
-        status === "Completed" ||
-        status === "Rejected" ||
-        status === "Cancelled"
-      ) {
-        car.available = true;
-      }
-
-      await car.save();
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
     }
+
+    const updated = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
 
     res.status(200).json({
       message: "Booking Status Updated",
-
-      booking,
+      booking: { ...updated, _id: updated.id },
     });
   } catch (error) {
     console.log("UPDATE BOOKING STATUS ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
