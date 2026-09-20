@@ -1,83 +1,86 @@
-import Review from "../models/review.model.js";
-import Booking from "../models/booking.model.js";
-import Car from "../models/car.model.js";
+import prisma from "../config/prisma.js";
 
 export const addReview = async (req, res) => {
   try {
     const { carId, rating, comment } = req.body;
 
-    // check booking
-    const booking = await Booking.findOne({
-      user: req.user.id,
-      car: carId,
-      status: "completed",
+    // Check if user has a completed booking for this car
+    const booking = await prisma.booking.findFirst({
+      where: {
+        userId: req.user.id,
+        carId,
+        status: "COMPLETED",
+      },
     });
 
     if (!booking) {
       return res.status(400).json({
-        message: "You can only review completed bookings",
+        message: "You can only review cars you have completed a booking for",
       });
     }
 
-    // prevent duplicate review
-    const existingReview = await Review.findOne({
-      user: req.user.id,
-      car: carId,
+    // Check if user already reviewed this car
+    const existingReview = await prisma.review.findUnique({
+      where: { userId_carId: { userId: req.user.id, carId } },
     });
 
     if (existingReview) {
-      return res.status(400).json({
-        message: "Review already added",
-      });
+      return res
+        .status(400)
+        .json({ message: "You have already reviewed this car" });
     }
 
-    // create review
-    const review = await Review.create({
-      user: req.user.id,
-      car: carId,
-      rating,
-      comment,
+    const review = await prisma.review.create({
+      data: {
+        userId: req.user.id,
+        carId,
+        rating: Number(rating),
+        comment,
+      },
     });
 
-    // calculate average rating
-    const reviews = await Review.find({ car: carId });
+    // Update car's average rating
+    const allReviews = await prisma.review.findMany({ where: { carId } });
+    const totalReviews = allReviews.length;
+    const averageRating =
+      allReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews;
 
-    const total = reviews.reduce((acc, item) => {
-      return acc + item.rating;
-    }, 0);
-
-    const average = total / reviews.length;
-
-    await Car.findByIdAndUpdate(carId, {
-      averageRating: average,
-      totalReviews: reviews.length,
+    await prisma.car.update({
+      where: { id: carId },
+      data: { averageRating, totalReviews },
     });
 
     res.status(201).json({
       message: "Review Added Successfully",
-      review,
+      review: { ...review, _id: review.id },
     });
   } catch (error) {
     console.log("ADD REVIEW ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const getCarReviews = async (req, res) => {
   try {
-    const reviews = await Review.find({
-      car: req.params.carId,
-    }).populate("user", "name");
+    const reviews = await prisma.review.findMany({
+      where: { carId: req.params.carId },
+      include: {
+        user: {
+          select: { id: true, name: true, profilePicture: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    res.status(200).json(reviews);
+    res.status(200).json({
+      reviews: reviews.map((r) => ({
+        ...r,
+        _id: r.id,
+        user: r.user ? { ...r.user, _id: r.user.id } : null,
+      })),
+    });
   } catch (error) {
     console.log("GET REVIEWS ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };

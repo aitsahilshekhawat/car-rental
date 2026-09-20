@@ -1,39 +1,30 @@
-import Booking from "../models/booking.model.js";
+import prisma from "../config/prisma.js";
 
 export const getUserDashboard = async (req, res) => {
   try {
-    const totalBookings = await Booking.countDocuments({
-      user: req.user.id,
-    });
+    const userId = req.user.id;
 
-    const activeBookings = await Booking.countDocuments({
-      user: req.user.id,
-      status: "approved",
-    });
+    const [totalBookings, activeBookings, completedBookings, totalSpentResult] =
+      await Promise.all([
+        prisma.booking.count({ where: { userId } }),
+        prisma.booking.count({ where: { userId, status: "APPROVED" } }),
+        prisma.booking.count({ where: { userId, status: "COMPLETED" } }),
+        prisma.booking.aggregate({
+          _sum: { totalPrice: true },
+          where: { userId, status: { in: ["APPROVED", "COMPLETED"] } },
+        }),
+      ]);
 
-    const completedBookings = await Booking.countDocuments({
-      user: req.user.id,
-      status: "completed",
-    });
-
-    const recentBookings = await Booking.find({
-      user: req.user.id,
-    })
-      .populate("car")
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const totalSpent = totalSpentResult._sum.totalPrice || 0;
 
     res.status(200).json({
       totalBookings,
       activeBookings,
       completedBookings,
-      recentBookings,
+      totalSpent,
     });
   } catch (error) {
     console.log("USER DASHBOARD ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };

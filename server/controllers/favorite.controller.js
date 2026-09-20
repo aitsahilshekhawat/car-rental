@@ -1,59 +1,53 @@
-import User from "../models/user.model.js";
+import prisma from "../config/prisma.js";
 
 export const toggleFavorite = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User Not Found",
-      });
-    }
-
     const { carId } = req.body;
 
-    const alreadyFavorite = user.favoriteCars.some(
-      (id) => id.toString() === carId,
-    );
-
-    if (alreadyFavorite) {
-      user.favoriteCars = user.favoriteCars.filter(
-        (id) => id.toString() !== carId,
-      );
-
-      await user.save();
-
-      return res.status(200).json({
-        message: "Removed From Favorites",
-      });
+    if (!carId) {
+      return res.status(400).json({ message: "Car ID is required" });
     }
 
-    user.favoriteCars.push(carId);
+    // Check if car exists
+    const car = await prisma.car.findUnique({ where: { id: carId } });
+    if (!car) {
+      return res.status(404).json({ message: "Car Not Found" });
+    }
 
-    await user.save();
-
-    res.status(200).json({
-      message: "Added To Favorites",
+    // Check if already favorited
+    const existing = await prisma.favoriteCar.findUnique({
+      where: { userId_carId: { userId: req.user.id, carId } },
     });
+
+    if (existing) {
+      // Remove from favorites
+      await prisma.favoriteCar.delete({ where: { id: existing.id } });
+      return res.status(200).json({ message: "Car removed from favorites" });
+    } else {
+      // Add to favorites
+      await prisma.favoriteCar.create({
+        data: { userId: req.user.id, carId },
+      });
+      return res.status(200).json({ message: "Car added to favorites" });
+    }
   } catch (error) {
-    console.log("FAVORITE ERROR:", error);
-
-    res.status(500).json({
-      message: error.message,
-    });
+    console.log("TOGGLE FAVORITE ERROR:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const getFavorites = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate("favoriteCars");
+    const favorites = await prisma.favoriteCar.findMany({
+      where: { userId: req.user.id },
+      include: { car: true },
+    });
 
-    res.status(200).json(user.favoriteCars);
+    res.status(200).json({
+      favoriteCars: favorites.map((f) => ({ ...f.car, _id: f.car.id })),
+    });
   } catch (error) {
     console.log("GET FAVORITES ERROR:", error);
-
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };

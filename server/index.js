@@ -2,10 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
-import mongoSanitize from "express-mongo-sanitize";
 import cookieParser from "cookie-parser";
 
-import connectDB from "./config/db.js";
+import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.route.js";
 import carRoutes from "./routes/car.route.js";
 import bookingRoutes from "./routes/booking.route.js";
@@ -21,8 +20,6 @@ import hostRoutes from "./routes/host.route.js";
 
 dotenv.config();
 import "./config/cloudinary.js";
-
-connectDB();
 
 const app = express();
 
@@ -45,9 +42,6 @@ app.use(express.urlencoded({ limit: "1mb", extended: true }));
 // H1: Parse cookies so auth middleware can read HttpOnly JWT cookie
 app.use(cookieParser());
 
-// H6: Strip $ and . from req.body/query/params to prevent NoSQL injection
-app.use(mongoSanitize());
-
 app.use("/api/auth", authRoutes);
 app.use("/api/cars", carRoutes);
 app.use("/api/bookings", bookingRoutes);
@@ -66,6 +60,15 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
+
+// Verify PostgreSQL connection before starting
+try {
+  await prisma.$connect();
+  console.log("PostgreSQL Connected via Prisma");
+} catch (error) {
+  console.error("PostgreSQL connection failed:", error);
+  process.exit(1);
+}
 
 app.listen(PORT, () => {
   console.log(`Server Running on Port ${PORT}`);

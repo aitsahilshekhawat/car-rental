@@ -1,24 +1,34 @@
-import User from "../models/user.model.js";
+import prisma from "../config/prisma.js";
 
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select(
-      "-password -resetPasswordToken -resetPasswordExpire",
-    );
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        googleId: true,
+        authProvider: true,
+        profilePicture: true,
+        phone: true,
+        hostBio: true,
+        hostCity: true,
+        hostStatus: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json(user);
+    res.status(200).json({ ...user, _id: user.id });
   } catch (error) {
     console.log("GET PROFILE ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
@@ -26,28 +36,27 @@ export const updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body;
 
-    const user = await User.findById(req.user.id);
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
 
     if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    if (name) user.name = name;
-    if (phone !== undefined) user.phone = phone;
+    const updates = {};
+    if (name) updates.name = name;
+    if (phone !== undefined) updates.phone = phone;
 
-    await user.save();
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updates,
+    });
 
     res.status(200).json({
       message: "Profile Updated Successfully",
-      user,
+      user: { ...updatedUser, _id: updatedUser.id },
     });
   } catch (error) {
     console.log("UPDATE PROFILE ERROR:", error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
