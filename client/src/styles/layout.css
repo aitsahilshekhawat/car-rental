@@ -60,5 +60,6 @@
 .footer-links span { color:#e9a25f; font-family:"DM Mono",monospace; font-size:10px; letter-spacing:.12em; margin-bottom:7px; text-transform:uppercase; }
 .footer-links a { color:#c5cbd5; font-size:13px; }
 .footer-links a:hover { color:#fff; }
-.footer-bottom { border-top:1px solid #2b3444; color:#778192; display:flex; font-size:11px; justify-content:space-between; padding-top:22px; }
+.footer-bottom { border-top:1px solid #2b3444; color:#8f9ab0; display:flex; font-size:12px; justify-content:space-between; padding-top:22px; }
 .footer-bottom div { display:flex; gap:22px; }
+.footer-bottom a { color:#8f9ab0; }

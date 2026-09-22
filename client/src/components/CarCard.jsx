@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Heart, Star, Users, Gauge, Fuel } from "lucide-react";
+import { Heart, Star, Users, Gauge, Fuel, ArrowRight } from "lucide-react";
 import { currency } from "../data/cars";
 import { getMember } from "../services/session";
 
@@ -59,7 +59,7 @@ export default function CarCard({ car, compact = false, saved = false, onToggleS
       <div className="car-card-copy">
         <div className="car-card-heading"><div><p className="eyebrow">{car.brand}</p><h3>{car.name.replace(`${car.brand} `, "")}</h3></div><span className="rating"><Star size={14} fill="currentColor" /> {car.rating}</span></div>
         {!compact && <div className="car-meta"><span><Gauge size={15} /> {car.transmission}</span><span><Fuel size={15} /> {car.fuelType}</span><span><Users size={15} /> {car.seatingCapacity} seats</span></div>}
-        <div className="car-card-price"><span><strong>₹{currency(car.pricePerDay)}</strong> / day</span><Link to={`/cars/${car.id}`}>View car <span>↗</span></Link></div>
+        <div className="car-card-price"><span><strong>₹{currency(car.pricePerDay)}</strong> / day</span><Link to={`/cars/${car.id}`}>View car <ArrowRight size={15} /></Link></div>
       </div>
     </article>
   );

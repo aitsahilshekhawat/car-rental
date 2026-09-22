@@ -19,9 +19,10 @@ export function Cars() {
   const displayReturn = returnParam ? new Date(returnParam) : new Date(new Date().setDate(new Date().getDate() + 3));
   
   const formatDateForEyebrow = (date) => {
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
   const datesText = `${formatDateForEyebrow(displayPickup)} — ${formatDateForEyebrow(displayReturn)}`;
+  const [limit, setLimit] = useState(12);
 
   const [dbCars, setDbCars] = useState([]);
 
@@ -70,9 +71,15 @@ export function Cars() {
     });
   };
 
+  const capitalize = s => s && s[0].toUpperCase() + s.slice(1).toLowerCase();
+
   return <PageShell className="listing-page">
-    <section className="listing-hero"><div className="wrap"><p className="eyebrow">{searchLocation ? `${searchLocation.toUpperCase()} · ${datesText}` : `ALL CITIES · ${datesText}`}</p><h1>Find a car that feels like <em>yours.</em></h1><SearchBar initialLocation={searchLocation} initialPickup={pickupParam} initialReturn={returnParam} onSearch={handleSearch} /></div></section>
-    <section className="wrap listing-content"><div className="listing-bar"><p><strong>{filtered.length} cars</strong> available for your escape</p><button className="filter-trigger" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17} /> Filters <span>{filtersOpen ? <X size={15} /> : <ChevronDown size={15} />}</span></button></div>{filtersOpen && <div className="filter-drawer"><div><span>Vehicle type</span>{["All cars", "SUV", "Premium", "Luxury", "Electric"].map((item) => <button className={active === item ? "selected" : ""} onClick={() => setActive(item)} key={item}>{item}</button>)}</div><div><span>Transmission</span><button>Automatic</button><button>Manual</button></div><div><span>Price per day</span><input type="range" min="2000" max="10000" defaultValue="8000" /></div></div>}
-      <div className="browse-pills">{["All cars", "SUV", "Electric", "Premium", "Weekend favourites"].map((item) => <button className={active === item ? "active" : ""} onClick={() => setActive(item)} key={item}>{item}</button>)}</div><div className="car-grid listing-grid">{filtered.map((car) => <CarCard car={car} key={car.id} />)}</div></section>
+    <section className="listing-hero"><div className="wrap"><p className="eyebrow">{searchLocation ? `${capitalize(searchLocation)} · ${datesText}` : `All cities · ${datesText}`}</p><h1>Find a car that feels like <em>yours.</em></h1><SearchBar initialLocation={searchLocation} initialPickup={pickupParam} initialReturn={returnParam} onSearch={handleSearch} /></div></section>
+    <section className="wrap listing-content">
+      <h2 className="sr-only" style={{position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0}}>Available Cars</h2>
+      <div className="listing-bar"><p><strong>{filtered.length} cars</strong> available for your voyage</p><button className="filter-trigger" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17} /> Filters <span>{filtersOpen ? <X size={15} /> : <ChevronDown size={15} />}</span></button></div>{filtersOpen && <div className="filter-drawer"><div><span>Vehicle type</span>{["All cars", "SUV", "Premium", "Luxury", "Electric"].map((item) => <button className={active === item ? "selected" : ""} onClick={() => setActive(item)} key={item}>{item}</button>)}</div><div><span>Transmission</span><button>Automatic</button><button>Manual</button></div><div><span>Price per day</span><input type="range" min="2000" max="10000" defaultValue="8000" /></div></div>}
+      <div className="browse-pills">{["All cars", "SUV", "Electric", "Premium", "Weekend favourites"].map((item) => <button className={active === item ? "active" : ""} onClick={() => setActive(item)} key={item}>{item}</button>)}</div><div className="car-grid listing-grid">{filtered.slice(0, limit).map((car) => <CarCard car={car} key={car.id} />)}</div>
+      {filtered.length > limit && <div style={{ display: "flex", justifyContent: "center", marginTop: "50px", paddingBottom: "30px" }}><button className="button button-light" onClick={() => setLimit(l => l + 12)}>Load more cars</button></div>}
+    </section>
   </PageShell>;
 }

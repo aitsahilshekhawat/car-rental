@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowRight, ArrowUpRight, Calendar, Car, Check, CheckCircle2,
+  ArrowRight, Calendar, Car, Check, CheckCircle2,
   CreditCard, Fuel, Gauge, IndianRupee, Lock,
   Mail, MapPin, Minus, Plus, Search, ShieldCheck,
   Sparkles, Star, Upload, Users,
@@ -52,14 +52,14 @@ export function SearchBar({ dark = false, onSearch, initialLocation = "", initia
     </span></label>
     <div className="search-field"><Calendar size={18} /><span><small>Pick-up</small><DatePicker selected={pickup} onChange={date => { setPickup(date); if (returnDate < date) { setReturnDate(new Date(new Date(date).setDate(date.getDate() + 3))); } }} dateFormat="dd MMM yyyy" placeholderText="Add date" /></span></div>
     <div className="search-field"><Calendar size={18} /><span><small>Return</small><DatePicker selected={returnDate} onChange={date => setReturnDate(date)} dateFormat="dd MMM yyyy" placeholderText="Add date" minDate={pickup} /></span></div>
-    <button className="search-submit" aria-label="Search cars"><Search size={21} /></button>
+    <button className="search-submit" aria-label="Search cars"><Search size={18} /> Search</button>
   </form>;
 }
 
 export function SectionTitle({ label, title, copy, link, children }) {
   return <div className="section-heading">
     <div><p className="eyebrow">{label}</p><h2>{title}</h2>{copy && <p className="section-copy">{copy}</p>}</div>
-    {link && <Link className="arrow-link" to={link}>{children || "See all cars"} <ArrowUpRight size={17} /></Link>}
+    {link && <Link className="arrow-link" to={link}>{children || "See all cars"} <ArrowRight size={17} /></Link>}
   </div>;
 }
 
@@ -163,7 +163,7 @@ export function CarForm({ car, isNew = false }) {
     }
   };
 
-  return <div className="car-form-layout"><div className="panel car-editor"><div className="panel-heading"><div><p className="eyebrow">CAR DETAILS</p><h3>Tell guests about your car.</h3></div></div><div className="photo-upload">{formData.image ? <img src={formData.image} alt="" /> : <div style={{ width: "100%", height: "200px", background: "#f5f5f5", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: "#999" }}>No image</div>}<Field label="Image URL"><input placeholder="https://images.unsplash.com/..." value={formData.image} onChange={e => updateField("image", e.target.value)} /></Field><span>Paste an image URL for your car listing.</span></div><div className="profile-fields">{carFields.map((field) => { const keyMap = {"Car name":"name","Brand":"brand","Vehicle type":"type","Price per day":"pricePerDay","Fuel type":"fuelType","Transmission":"transmission","Seating capacity":"seatingCapacity","Location":"location"}; const k = keyMap[field]; return <Field key={field} label={field}><input value={formData[k] || ""} onChange={e => updateField(k, e.target.value)} placeholder={field} /></Field>; })}</div><label className="form-field form-wide"><span>About this car</span><div><textarea defaultValue={formData.name ? `A beautifully kept ${formData.name}, ready for your next drive.` : ""} /></div></label>{error && <p style={{ color: "#e74c3c", fontSize: "13px", fontWeight: 500, marginBottom: "12px" }}>{error}</p>}<button className="button button-dark" onClick={handleSave} disabled={saving}>{saved ? <><Check />Car saved!</> : saving ? "Saving..." : <>Save changes <ArrowRight size={17} /></>}</button></div><aside className="editor-tip"><Sparkles size={22} /><h3>Great listings get noticed.</h3><p>Clear photos and complete details help guests feel confident about booking.</p><Link to="/help-center">Listing tips <ArrowUpRight size={15} /></Link></aside></div>;
+  return <div className="car-form-layout"><div className="panel car-editor"><div className="panel-heading"><div><p className="eyebrow">CAR DETAILS</p><h3>Tell guests about your car.</h3></div></div><div className="photo-upload">{formData.image ? <img src={formData.image} alt="" /> : <div style={{ width: "100%", height: "200px", background: "#f5f5f5", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", color: "#999" }}>No image</div>}<Field label="Image URL"><input placeholder="https://images.unsplash.com/..." value={formData.image} onChange={e => updateField("image", e.target.value)} /></Field><span>Paste an image URL for your car listing.</span></div><div className="profile-fields">{carFields.map((field) => { const keyMap = {"Car name":"name","Brand":"brand","Vehicle type":"type","Price per day":"pricePerDay","Fuel type":"fuelType","Transmission":"transmission","Seating capacity":"seatingCapacity","Location":"location"}; const k = keyMap[field]; return <Field key={field} label={field}><input value={formData[k] || ""} onChange={e => updateField(k, e.target.value)} placeholder={field} /></Field>; })}</div><label className="form-field form-wide"><span>About this car</span><div><textarea defaultValue={formData.name ? `A beautifully kept ${formData.name}, ready for your next drive.` : ""} /></div></label>{error && <p style={{ color: "#e74c3c", fontSize: "13px", fontWeight: 500, marginBottom: "12px" }}>{error}</p>}<button className="button button-dark" onClick={handleSave} disabled={saving}>{saved ? <><Check />Car saved!</> : saving ? "Saving..." : <>Save changes <ArrowRight size={17} /></>}</button></div><aside className="editor-tip"><Sparkles size={22} /><h3>Great listings get noticed.</h3><p>Clear photos and complete details help guests feel confident about booking.</p><Link to="/help-center">Listing tips <ArrowRight size={15} /></Link></aside></div>;
 }
 
 export const termsBlocks = [
